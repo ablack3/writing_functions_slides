@@ -1,0 +1,354 @@
+---
+title: "Writing (good) functions in R"
+author: "Adam Black"
+date: "2/11/2020"
+output:   
+  ioslides_presentation:
+    widescreen: TRUE
+---
+
+<!-- HTML to enable scrolling in slides -->
+<style>
+slides > slide {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+</style>
+
+
+```{r setup, include=FALSE, message=F}
+knitr::opts_chunk$set(echo = T, eval = F)
+library(tidyverse)
+```
+
+## Disclaimer
+
+This presentation is copied verbatim from an old datacamp course on writing functions.
+
+## Parts of a function
+
+```{r}
+name <- function(arg1, arg2) {
+  # body
+}
+```
+
+**Exercise 1:** Type "fun" and push tab in RStudio to insert a function template.
+
+## Arguments can be specified by name or position
+
+```{r, eval = T}
+ratio <- function(x, y) {
+  x/y
+}
+
+# match arguments by position
+ratio(3, 4)
+# match arguments by name
+ratio(y = 4, x = 3)
+```
+
+The last evaluate expression in the function is what the function returns.
+
+
+## Environments
+
+Names are first looked up in a function's arguments. If not found they will be looked up in the environment where the function was defined (often the global environment).
+
+```{r, eval = T}
+x <- 100
+ratio <- function(x, y) {
+  x/y
+}
+
+ratio(3, 4)
+
+# Normally we want to avoid code like this 
+z <- 100
+ratio <- function(x, y) {
+  z/y
+}
+
+ratio(3, 4)
+
+```
+
+The last evaluate expression in the function is what the function returns.
+
+## Why write a function?
+
+- Make intent of code more clear to the reader
+- Reduces mistakes from copy and pasting code
+- Less duplicated code is easier to change
+
+## Why write a function?
+
+- What is the intent of the code below?
+- How was it written?
+- Can you spot the error?
+
+```{r, eval = F}
+df$a <- (df$a - min(df$a, na.rm = TRUE)) /
+    (max(df$a, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+
+df$b <- (df$b - min(df$b, na.rm = TRUE)) /
+    (max(df$a, na.rm = TRUE) - min(df$b, na.rm = TRUE))
+
+df$c <- (df$c - min(df$c, na.rm = TRUE)) /
+    (max(df$c, na.rm = TRUE) - min(df$c, na.rm = TRUE))
+
+df$d <- (df$d - min(df$d, na.rm = TRUE)) /
+    (max(df$d, na.rm = TRUE) - min(df$d, na.rm = TRUE))
+
+```
+
+## When should you write a function?
+
+If you have copied and pasted code twice, it's time to write a function.
+
+```{r, eval = F}
+df$a <- rescale01(df$a)
+df$b <- rescale01(df$b)
+df$c <- rescale01(df$c)
+df$d <- rescale01(df$d)
+```
+
+## How to write a function?
+
+**Don't start with the function template!**
+
+Instead follow a 5 step process.
+
+- Start with a simple problem
+- Get a working snippet of code
+- Rewrite to use temporary variables
+- Rewrite for clarity
+- Finally turn the snippet into a function
+
+## 1. Start with a simple problem
+
+Your problem should be concrete and you should know the answer.
+
+```{r, eval = T}
+df <- data.frame(
+  a = 1:11,
+  b = rnorm(11),
+  c = rnorm(11),
+  d = rnorm(11)
+)
+
+# Rescale thea column in df to the interval [0,1]
+
+# Output should be
+ # [1] 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0
+```
+
+
+
+## 2. Get a working snippet of code that solves the problem
+
+Examine the working code snippet to determine what the function inputs should be
+
+```{r}
+
+df$a <- (df$a - min(df$a, na.rm = TRUE)) /
+    (max(df$a, na.rm = TRUE) - min(df$a, na.rm = TRUE))
+
+```
+
+
+
+## 3. Rewrite the snippet using temporary variables
+
+Examine the working code snippet to determine what the function inputs should be
+
+```{r}
+x <- df$a
+
+(x - min(x, na.rm = TRUE)) /
+    (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+
+```
+
+
+## 4. Rewrite for clarity
+
+```{r}
+x <- df$a
+
+# extract out calculation of the range
+rng <- range(x, na.rm = T)
+
+(x - rng[1]) / (rng[2] - rng[1])
+
+```
+
+## 5. Finally, turn your working snippet into a function
+
+Make sure all teporary variables become arguments.
+Test the function on your simple problem as well as other similar problems.
+
+```{r, eval = T}
+x <- df$a
+
+rescale01 <- function(x) {
+  rng <- range(x, na.rm = T)
+  (x - rng[1]) / (rng[2] - rng[1])
+}
+
+# Test the function
+rescale01(x)
+```
+
+
+## Use your function just like any other R function
+
+```{r, eval = T}
+df %>% 
+  mutate_all(rescale01)
+```
+
+
+
+
+## How to write a good function?
+
+- A function should solve a problem **correctly**
+- A function should be understanable to humans
+- Correct + understandable = obviously correct
+
+
+## What does this code do?
+```{r, eval = F}
+baz <- foo(bar, bla)
+```
+
+## What does this code do?
+```{r}
+df2 <- arrange(df, time)
+```
+
+
+## Naming principles
+
+- Pick a consistent style for long names
+```{r}
+# Good
+col_mins()
+row_maxes()
+
+# Bad
+newData <- c(old.data, todays_log)
+```
+
+
+- Do not override existing variables or functions
+```{r}
+# Bad
+T <- FALSE
+c <- 10
+mean <- function(x) sum(x)
+```
+
+
+
+## Function names
+
+- Should generally be verbs 
+
+```{r}
+# Good
+impute_missing()
+
+# Bad
+imputed()
+```
+
+- Should be descriptive
+```{r}
+# Good
+collapse_years()
+
+# Bad
+f()
+my_awesome_function()
+```
+
+## Argument names
+
+- Should generally be nouns
+- Use very common short names when appropriate:
+  * x, y, z: vectors
+  * df: a dataframe
+  * i, j: numeric indicies (typically rows and columns)
+  * n: length or number of rows
+  * p: number of columns
+
+
+## Argument order
+
+Arguments generally fall into two categories
+
+- **data arguments** supply data to compute on
+- **detail arguments** control the details of the computations
+
+```{r}
+mean(x, trim = 0, na.rm = FALSE, ...)
+
+t.test(x, y = NULL,
+       alternative = "two.sided",
+       mu = 0, paired = FALSE, var.equal = FALSE,
+       conf.level = 0.95, ...)
+```
+
+Exercise: What are the data and detail arguments in the function calls above?
+
+## Argument order
+
+- Data arguments should come before detail arguments
+- Detail arguments should have sensible default values
+
+
+
+## How to write a function?
+ 
+- Start with a simple problem
+- Get a working snippet of code
+- Rewrite to use temporary variables
+- Rewrite for clarity
+- Finally turn the snippet into a function
+
+## What makes a good function?
+- Use good names for functions and arguments
+- Use an intuitive argument order and reasonable default values
+- Make it clear what the function returns
+- Use good code style inside the body of the function
+
+https://style.tidyverse.org/
+
+
+## Writing functions with dplyr code
+
+dplyr uses non-standard evaluation to make it easy to use for analysts. However this can causes problems when using dplyr inside functions. The solution to this problem is *tidyeval* which is a topic for another day.
+
+If you find yourself needing to write functions with dplyr check out these links.
+
+https://dplyr.tidyverse.org/articles/programming.html
+
+https://edwinth.github.io/blog/dplyr-recipes/
+
+
+## Time to practice!
+
+The airquality dataset has daily readings of the following air quality values for May 1, 1973 to September 30, 1973.
+
+Our problem is to replace missing values in each column with the median value in that column.
+
+
+Use the 5 steps to write a function that imputes missing data with the median non-missing value in the data.
+
+Use your function to impute all missing data in the built-in airquality dataset. Next run your function on the sleep dataset in the VIM package.
+
+
+
+
